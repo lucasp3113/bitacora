@@ -37,6 +37,7 @@ typedef struct cabezal {
 } cabezal;
 
 static cabezal texto;
+static bool inicializado = false;
 
 //FUNCIONES AUXILIARES:
 
@@ -97,6 +98,7 @@ void borrarLineaAux(Posicion p, lineas * l) {
 */
 void Destruir() {
     liberarLineas(texto.primera);
+    inicializado=false;
 }
 
 void Inicializar() {
@@ -104,12 +106,15 @@ void Inicializar() {
     texto.primera = NULL;
     texto.ultima = NULL;
     texto.cantidad = 0;   
+    inicializado=true;
 }
 
 
 
 //O(1)
-TipoRetorno InsertarLinea() {  
+TipoRetorno InsertarLinea() {
+    if(!inicializado) return ERROR;
+
     lineas l = crearLinea();
     if(texto.cantidad == 0) { //texto vacío
         texto.primera = l;
@@ -125,6 +130,8 @@ TipoRetorno InsertarLinea() {
 }
 
 TipoRetorno BorrarLinea(Posicion p) {
+    if(!inicializado) return ERROR;
+
     if(texto.cantidad < p || p == 0) 
         return ERROR;
     borrarLineaAux(p, &(texto.primera));
