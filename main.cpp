@@ -1,7 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #define MAX_CANT_PALABRAS_X_LINEA 5
 
@@ -29,9 +28,18 @@ typedef struct linea {
 
 typedef linea * lineas;
 
+typedef struct diccionarioABB {
+    string info;
+    struct diccionarioABB * der;
+    struct diccionarioABB * izq;
+} diccionarioABB;
+
+typedef diccionarioABB *  diccionario;
+
 typedef struct cabezal {
     linea * primera;
     linea * ultima;
+    diccionario dicc;
     unsigned int cantidad;
 } cabezal;
 
@@ -42,7 +50,7 @@ static bool inicializado = false;
 
 //O(1)
 lineas crearLinea() {
-    lineas l = malloc(sizeof(linea));
+    lineas l = new(linea);
     l->primera = NULL;
     l->sig = NULL;
     l->cantidad = 0;
@@ -51,18 +59,28 @@ lineas crearLinea() {
 }
 
 palabras crearPalabra() {
-    palabras p = malloc(sizeof(palabra));
+    palabras p = new(palabra);
     p->info = NULL;
     p->sig = NULL;
 
     return p;
 }
 
+diccionario crearNodoDiccionario() {
+    diccionario d = new(diccionarioABB);
+    d->info = NULL;
+    d->izq = NULL;
+    d->der = NULL;
+
+    return d;
+} 
+
 void liberarPalabras(palabras p) {
     if(p == NULL)
         return;
     liberarPalabras(p->sig);
-    free(p);
+    free(p->info);
+    delete(p);
 }
 
 void liberarLineas(lineas l) {
@@ -70,7 +88,7 @@ void liberarLineas(lineas l) {
         return;
     liberarLineas(l->sig);
     liberarPalabras(l->primera);
-    free(l);
+    delete(l);
 }
 
 void borrarLineaAux(Posicion p, lineas * l) {
@@ -80,7 +98,7 @@ void borrarLineaAux(Posicion p, lineas * l) {
         *l = (*l)->sig;
         if(aux == texto.ultima)
             texto.ultima = *l;
-        free(aux);
+        delete(aux);
         return;
     }
 
@@ -90,7 +108,7 @@ void borrarLineaAux(Posicion p, lineas * l) {
         (*l)->sig = aux->sig;
         if(aux == texto.ultima)
             texto.ultima = *l;
-        free(aux);
+        delete(aux);
         return;
     }
 
@@ -115,16 +133,6 @@ void insertarPalabraEnLinea(palabras * p, Posicion pos, string palabra) {
         return;
     }
 
-    if(pos == 2) {
-        palabras aux = (*p)->sig;
-        (*p)->sig = crearPalabra();
-        (*p)->sig->info = palabra;
-        (*p)->sig->sig = aux;
-        
-
-        return;
-    }
-
     insertarPalabraEnLinea(&((*p)->sig), pos-1, palabra);
 }
 
@@ -132,13 +140,8 @@ void borrarPalabraEnLinea(palabras * p, Posicion pos) {
     if(pos == 1) {
         palabras aux = *p;
         *p = (*p)->sig;
-        free(aux);
-        return;
-    }
-    if(pos == 2) {
-        palabras aux = (*p)->sig;
-        (*p)->sig = (*p)->sig->sig;
-        free(aux);
+        free(aux->info);
+        delete(aux);
         return;
     }
 
@@ -188,16 +191,84 @@ void imprimirPalabras(palabras p){
 void imprimirTextoAux(lineas l, int n) {
     if(l == NULL)
         return;
-    printf("%d: ");
+    printf("%d: ", n);
     imprimirPalabras(l->primera);
     printf("\n");
     imprimirTextoAux(l->sig, n+1);
 }
 
+void liberarDiccionario(diccionario d) {
+    if(d == NULL) 
+        return;
+    liberarDiccionario(d->izq);
+    liberarDiccionario(d->der);
+    delete(d);
+}
+
+TipoRetorno ingresarPalabraDiccionarioAux(string palabra, diccionario * d) {
+    if(*d == NULL) {
+        (*d) = crearNodoDiccionario();
+        (*d)->info = palabra;
+        return OK;
+    }
+    int a = strcmp(palabra, (*d)->info);
+    if(a == 0)
+        return ERROR;
+    return (a > 0) ? ingresarPalabraDiccionarioAux(palabra, &((*d)->der)) : ingresarPalabraDiccionarioAux(palabra, &((*d)->izq));
+}
+
+void imprimirDiccionarioAux(diccionario d) {
+    if(d == NULL)
+        return;
+    imprimirDiccionarioAux(d->izq);
+    printf("%s\n", d->info);
+    imprimirDiccionarioAux(d->der);
+}
+
+bool estaPalabraPerteneceAlDicc(palabras p, diccionario d) {
+    if(d == NULL)
+        return false;
+    int a = strcmp(p->info, d->info);
+    if(a == 0)  
+        return true;
+    return (a > 0) ? estaPalabraPerteneceAlDicc(p, d->der) : estaPalabraPerteneceAlDicc(p, d->izq);
+}
+
+void imprimirPalabrasIncorrectasAux(palabras p) {
+    if(p == NULL)
+        return;
+    if(!estaPalabraPerteneceAlDicc(p, texto.dicc))
+        printf("%s ", p->info);
+    imprimirPalabrasIncorrectasAux(p->sig);
+}
+
+void imprimirTextoIncorrectoAux(lineas l, int n) {
+    if(l == NULL)
+        return;
+    printf("%d:", n);
+    imprimirPalabrasIncorrectasAux(l->primera);
+    printf("\n");
+    imprimirTextoIncorrectoAux(l->sig, n+1);
+}
+
+void agregarTodasLasPalabrasIncorrectasAlDiccionario(palabras p) {
+    if(p == NULL)
+        return;
+    ingresarPalabraDiccionarioAux(p->info, &(texto.dicc));
+    agregarTodasLasPalabrasIncorrectasAlDiccionario(p->sig);
+}
+
+void agregarIncorrectasAlDiccionarioAux(lineas l) {
+    if(l == NULL)
+        return;
+    agregarTodasLasPalabrasIncorrectasAlDiccionario(l->primera);
+    agregarIncorrectasAlDiccionarioAux(l->sig);
+}
+
 /*
-    Funciones "Primarias". Muchas reciben el 'texto t'(la cabezera) como parametro y de ser necesario
-    delegan a una función auxiliar la cual hace el "trabajo bruto", es decir, llamadas recursivas.
-    De esta forma le damos a main() una "fachada bonita" de las funciones a usar.
+    Funciones "Primarias". Muchas delegan a una función auxiliar la cual hace el "trabajo bruto",
+    es decir, llamadas recursivas. De esta forma le damos a main() una "fachada bonita"
+    de las funciones a usar.
 */
 
 void Destruir() {
@@ -205,6 +276,8 @@ void Destruir() {
     texto.primera = NULL;
     texto.ultima = NULL;
     texto.cantidad = 0;
+    liberarDiccionario(texto.dicc);
+    texto.dicc = NULL;
     inicializado=false;
 }
 
@@ -276,83 +349,49 @@ TipoRetorno ImprimirTexto() {
     if(texto.cantidad == 0)
         printf("Texto vacio");
     imprimirTextoAux(texto.primera, 1);
-    
     return OK;
 }
 
+TipoRetorno IngresarPalabraDiccionario(string palabra) {
+    if(!inicializado || palabra == NULL || palabra[0] == '\0' || tieneEspacios(palabra))
+        return ERROR;
+    return ingresarPalabraDiccionarioAux(palabra, &(texto.dicc));
+}
 
-int main() {
-   Inicializar();
+TipoRetorno ImprimirDiccionario() {
+    if(!inicializado)
+        return ERROR;
+    if(texto.dicc == NULL) {
+        printf("Diccionario vacio");
+        return OK;
+    }
+    imprimirDiccionarioAux(texto.dicc);
+    return OK;
+}
 
-// 6 líneas
-for (int i = 0; i < 6; i++)
-    InsertarLinea();
+TipoRetorno ImprimirTextoIncorrecto() {
+    if(!inicializado)
+        return ERROR;
+    if(texto.dicc == NULL)
+        return ImprimirTexto();
+    if(texto.cantidad == 0)
+        printf("Texto vacio");
+    imprimirTextoIncorrectoAux(texto.primera, 1);
+    return OK;
+}
 
-// Línea 1: llena (5 palabras)
-InsertarPalabra(1, 1, "El");
-InsertarPalabra(1, 2, "veloz");
-InsertarPalabra(1, 3, "murcielago");
-InsertarPalabra(1, 4, "hindu");
-InsertarPalabra(1, 5, "comia");
+TipoRetorno AgregarIncorrectasAlDiccionario() {
+    if(!inicializado)
+        return ERROR;
+    agregarIncorrectasAlDiccionarioAux(texto.primera);
+    return OK;
+}
 
-// Línea 2: llena, con palabras raras
-InsertarPalabra(2, 1, "3.14159");
-InsertarPalabra(2, 2, "@#$%^&*()");
-InsertarPalabra(2, 3, "%s%d%n");        // si imprimís con printf(s) a secas, esto te rompe
-InsertarPalabra(2, 4, "---");
-InsertarPalabra(2, 5, "x");
+#include "ui.cpp"
 
-// Línea 3: vacía a propósito
-
-// Línea 4: dos palabras
-InsertarPalabra(4, 1, "a");
-InsertarPalabra(4, 2, "b");
-
-// Línea 5: una palabra larguísima
-InsertarPalabra(5, 1, "supercalifragilisticoespialidoso_y_ademas_un_poco_mas_largo_todavia");
-
-// Línea 6: vacía a propósito
-
-printf("\n--- paso 1: estado inicial ---\n");
-ImprimirTexto();
-
-// Desborde en cascada: línea 1 -> línea 2 -> línea 3
-InsertarPalabra(1, 1, "HOLA");
-printf("\n--- paso 2: desborde en cascada ---\n");
-ImprimirTexto();
-
-// Otro desborde, ahora en el medio de la línea 2
-InsertarPalabra(2, 3, "INSERTADA");
-printf("\n--- paso 3: insertar en el medio de la línea 2 ---\n");
-ImprimirTexto();
-
-// Llenar la línea 6 y desbordar la última línea (crea una línea nueva)
-InsertarPalabra(6, 1, "u");
-InsertarPalabra(6, 2, "v");
-InsertarPalabra(6, 3, "w");
-InsertarPalabra(6, 4, "y");
-InsertarPalabra(6, 5, "z");
-InsertarPalabra(6, 1, "OVERFLOW");
-printf("\n--- paso 4: desborde de la última línea ---\n");
-ImprimirTexto();
-
-// Borrados
-BorrarPalabra(1, 1);
-BorrarLinea(3);
-BorrarLinea(6);
-printf("\n--- paso 5: tras BorrarPalabra(1,1), BorrarLinea(3), BorrarLinea(6) ---\n");
-ImprimirTexto();
-
-// Casos de error (esperás 1 en cada uno, porque ERROR vale 1)
-printf("\n--- paso 6: errores (todos deberían dar 1) ---\n");
-printf("pLinea 0:         %d\n", InsertarPalabra(0, 1, "x"));
-printf("con espacio:      %d\n", InsertarPalabra(1, 1, "con espacio"));
-printf("linea inexistente:%d\n", InsertarPalabra(99, 1, "x"));
-printf("palabra vacia:    %d\n", InsertarPalabra(1, 1, ""));
-printf("borrar pos 0:     %d\n", BorrarPalabra(1, 0));
-printf("borrar linea 99:  %d\n", BorrarLinea(99));
-
-Destruir();
-
+int main(void) {
+    Inicializar();
+    iniciarUI();
+    Destruir();
     return 0;
 }
