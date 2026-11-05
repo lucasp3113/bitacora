@@ -11,7 +11,7 @@
 
 ---
 
-
+> [!IMPORTANT]
 > **Quien se concentra solo en la cima de la montaña, se pierde la belleza del camino.**
 
 ## Portada:
