@@ -18,4 +18,6 @@
 
 ## Video:
 
-[▶ Ver videobitácora](https://github.com/lucasp3113/bitacora/raw/main/videobitacora.mp4)
+<video src="videobitacora.mp4" width="100%" controls>
+  Tu navegador no soporta la reproducción de video.
+</video>
