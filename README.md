@@ -16,10 +16,8 @@
 > [!IMPORTANT]
 > **Quien se concentra solo en la cima de la montaña, se pierde la belleza del camino.**
 
-## Portada:
+## Video:
 
-<img src="image.png" width="100%" alt="Portada de Bitacora">
-
-## Menú:
-
-<img src="image-2.png" width="100%" alt="Menú de Bitacora">
+<video src="videobitacora.mp4" width="100%" controls>
+  Tu navegador no soporta la reproducción de video.
+</video>
