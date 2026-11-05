@@ -343,9 +343,10 @@ TipoRetorno ImprimirTexto() {
     if(!inicializado)
         return ERROR;
     if(texto.cantidad == 0) {
-        printf("Texto vacio");
+        printf("Texto vacio\n");
         return OK;
     }
+    printf("\n");
     imprimirTextoAux(texto.primera);
     return OK;
 }
@@ -360,9 +361,10 @@ TipoRetorno ImprimirDiccionario() {
     if(!inicializado)
         return ERROR;
     if(texto.dicc == NULL) {
-        printf("Diccionario vacio");
+        printf("Diccionario vacio\n");
         return OK;
     }
+    printf("\n");
     imprimirDiccionarioAux(texto.dicc);
     return OK;
 }
@@ -373,9 +375,10 @@ TipoRetorno ImprimirTextoIncorrecto() {
     if(texto.dicc == NULL)
         return ImprimirTexto();
     if(texto.cantidad == 0) {
-        printf("Texto vacio");
+        printf("Texto vacio\n");
         return OK;
     }
+    printf("\n");
     imprimirTextoIncorrectoAux(texto.primera);
     return OK;
 }
