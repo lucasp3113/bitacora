@@ -3,23 +3,21 @@
 #include <cstring>
 #include <ncurses.h>
 #include <stdarg.h>
-#undef OK   /* ncurses define OK y choca con tu enum */
+#undef OK
 
-/* ================== TAMAÑOS ================== */
-/* La interfaz se adapta a la terminal (minimo MINW x MINH). */
 #define MINW 100
 #define MINH 34
-#define HH 6                /* alto de la cabecera (logo + titulo) */
-#define TR_N 30             /* cuadros de la transicion (30 = 1.5 s) */
+#define HH 6
+#define TR_N 30
 #define MAXW 150
 #define MAXH 36
 #define N_OP 12
-#define MH (N_OP + 4)       /* alto de la caja del menu */
+#define MH (N_OP + 4)
 #define P(n) COLOR_PAIR(n)
 
-static int UW = MINW;       /* ancho total de la interfaz */
-static int UH = MINH - 4;   /* alto total (sin el pie)    */
-static int LW = 34;         /* ancho de la columna izquierda */
+static int UW = MINW;
+static int UH = MINH - 4;
+static int LW = 34;
 
 enum { C_NUBE = 1, C_LUNA, C_MAR, C_ESPUMA, C_CASCO, C_VELA,
        C_BANDERA, C_OK, C_ERR, C_TIT };
@@ -31,36 +29,32 @@ static const char *OPC[N_OP] = {
     "Agregar texto al dicc.", "Creditos", "Salir"
 };
 
-/* ================== ESTADO ================== */
 static long   tick = 0;
 static double nave_x = 0;
 static double nave_v = 0;
 static int    nave_t = 0;
-static int    nave_modo = 0;      /* 0 oculto, 1 entra, 2 navega, 3 sale */
+static int    nave_modo = 0;
 
 static int    g_sel = 0;
 static char   g_msg[160] = "";
-static int    g_msg_tipo = 0;     /* 0 normal, 1 ok, 2 error */
-static int    g_sea = 7;          /* filas de mar de la escena */
-static int    g_fase = 0;         /* 0 portada, 1 transicion, 2 menu */
-static int    g_trans = 0;        /* cuadro actual de la transicion */
-static WINDOW *g_buf = NULL;      /* copia de la portada para la transicion */
+static int    g_msg_tipo = 0;
+static int    g_sea = 7;
+static int    g_fase = 0;
+static int    g_trans = 0;
+static WINDOW *g_buf = NULL;
 
-static int         lp_modo = 0;   /* 0 menu, 1 campo, 2 confirmar, 3 visor */
+static int         lp_modo = 0;
 static const char *lp_titulo = "";
 static const char *lp_ayuda = "";
 static char        lp_buf[32];
 static int         lp_n = 0, lp_max = 0;
 static int         lp_off = 0;
-static int         lp_si = 1;     /* confirmar: 1 = Si marcado, 0 = No */
-static int         g_cmd = 0;     /* 1 = escribiendo un comando con "/" */
+static int         lp_si = 1;
+static int         g_cmd = 0;
 static char        g_cbuf[4] = "";
 static int         g_cn = 0;
-static long        cr_t0 = 0;     /* creditos: tick en que arrancaron */
+static long        cr_t0 = 0;
 
-/* ================== SPRITES ================== */
-
-/* barco de dos mastiles, armado por codigo (BH filas x BW columnas) */
 #define BW 34
 #define BH 11
 #define NAVE_INI (-(BW + 2))
@@ -134,7 +128,6 @@ static const char *NUBE_B[4] = {
     "  `-.______.-'   "
 };
 
-/* gaviotas: 2 cuadros de 2 filas */
 static const char *GAV[2][2] = {
     { "\\_   _/", "  `v'  " },
     { "  _v_  ", " /   \\ " }
@@ -148,9 +141,6 @@ static const char *LEJOS[4] = {
     "  \\_______/"
 };
 
-/* ================== UTILIDADES ================== */
-
-/* seno sin libm (no hace falta -lm) */
 static double seno(double x) {
     const double PI = 3.14159265358979, DOSPI = 6.28318530717959;
     double y;
@@ -174,7 +164,6 @@ static void aviso(int tipo, const char *fmt, ...) {
     g_msg_tipo = tipo;
 }
 
-/* pinta s en (y,x) ignorando espacios y recortando a [xlo, xhi) */
 static void pinta(int y, int x, const char *s, int xlo, int xhi) {
     for (int i = 0; s[i]; i++) {
         int cx = x + i;
@@ -202,7 +191,6 @@ static void caja(int y, int x, int h, int w, const char *titulo) {
     }
 }
 
-/* escribe s en hasta maxl filas de ancho w, cortando por espacios */
 static void escribirEnvuelto(int y, int x, int w, int maxl, const char *s) {
     int n = (int)strlen(s), i = 0, l = 0;
     while (i < n && l < maxl) {
@@ -224,7 +212,6 @@ static void escribirEnvuelto(int y, int x, int w, int maxl, const char *s) {
     }
 }
 
-/* calcula el tamaño de la interfaz segun la terminal */
 static void calcularTamano(void) {
     UW = COLS > MAXW ? MAXW : COLS;
     UH = (LINES - 4 - HH) > MAXH ? MAXH : (LINES - 4 - HH);
@@ -233,10 +220,6 @@ static void calcularTamano(void) {
     if (LW > 44) LW = 44;
 }
 
-/* ================== VISOR DE TEXTO ================== */
-
-/* arma las filas del texto con ancho w. Si dibuja, pinta las visibles.
-   Devuelve el total de filas. */
 static int filasTexto(int off, int alto, int dibuja, int y, int x, int w) {
     int fila = 0, nl = 1, cur, pl, vis;
     char pref[16];
@@ -254,17 +237,17 @@ static int filasTexto(int off, int alto, int dibuja, int y, int x, int w) {
             attrset(A_NORMAL);
         }
         for (p = l->primera; p != NULL; p = p->sig) {
-            int len = (int)strlen(p->info);
+            int len = (int)p->info.size();
             if (cur > pl && cur + len > w) {
                 fila++;
                 cur = pl;
             }
             vis = dibuja && fila >= off && fila < off + alto;
             if (vis) {
-                int mal = !estaPalabraPerteneceAlDicc(p, texto.dicc);
+                int mal = !estaPalabraPerteneceAlDicc(p->info, texto.dicc);
                 if (mal)
                     attrset(P(C_ERR) | A_BOLD);
-                mvprintw(y + fila - off, x + cur, "%.*s", w - cur, p->info);
+                mvprintw(y + fila - off, x + cur, "%.*s", w - cur, p->info.c_str());
                 attrset(A_NORMAL);
             }
             cur += len + 1;
@@ -281,12 +264,11 @@ static void recorrerDicc(diccionario d) {
         return;
     recorrerDicc(d->izq);
     if (dc_dib && dc_fila >= dc_off && dc_fila < dc_off + dc_alto)
-        mvprintw(dc_y + dc_fila - dc_off, dc_x, "%.*s", dc_w, d->info);
+        mvprintw(dc_y + dc_fila - dc_off, dc_x, "%.*s", dc_w, d->info.c_str());
     dc_fila++;
     recorrerDicc(d->der);
 }
 
-/* una palabra por fila, en orden alfabetico. Devuelve el total de filas. */
 static int filasDicc(int off, int alto, int dibuja, int y, int x, int w) {
     dc_fila = 0; dc_off = off; dc_alto = alto;
     dc_y = y; dc_x = x; dc_w = w; dc_dib = dibuja;
@@ -306,13 +288,10 @@ static int maxOffTexto(void) {
     return m > 0 ? m : 0;
 }
 
-/* ================== ESCENA ================== */
-
 static int bobBarco(void) {
     return seno(tick * 0.11) > 0.25 ? 1 : 0;
 }
 
-/* una fila de olas; solo dibuja donde la ola supera 'umbral' */
 static void filaOlas(int y, int x, int w, int fila, double umbral, int lunaC) {
     for (int c = 0; c < w; c++) {
         double v = seno(c * 0.33 - tick * 0.16 + fila * 1.7)
@@ -327,7 +306,7 @@ static void filaOlas(int y, int x, int w, int fila, double umbral, int lunaC) {
         else
             continue;
         if (ch == '~' && atr == P(C_MAR) && fila * 3 >= g_sea * 2)
-            atr |= A_BOLD;                       /* mar de adelante, mas vivo */
+            atr |= A_BOLD;
         if (lunaC >= 0 && abs(c - lunaC) <= 3)
             atr = P(C_LUNA) | A_BOLD;
         attrset(atr);
@@ -368,10 +347,10 @@ static void dibujarEspuma(int sy, int sx, int IW, int HZ) {
 }
 
 static void dibujarEscena(int y0, int x0) {
-    const int IW = UW - LW - 2;                  /* ancho interior */
-    const int IH = UH - 2;                       /* alto interior  */
-    const int SEA = (IH / 3 < 7) ? 7 : IH / 3;  /* filas de mar   */
-    const int HZ = IH - SEA;                     /* fila del horizonte */
+    const int IW = UW - LW - 2;
+    const int IH = UH - 2;
+    const int SEA = (IH / 3 < 7) ? 7 : IH / 3;
+    const int HZ = IH - SEA;
     const int lunaC = IW - 17 + 6;
     const int cl = ((HZ - 8) / 3 < 3) ? 3 : (HZ - 8) / 3;
     int sy = y0 + 1, sx = x0 + 1, i, k, r;
@@ -379,12 +358,10 @@ static void dibujarEscena(int y0, int x0) {
     g_sea = SEA;
     caja(y0, x0, UH, UW - LW, NULL);
 
-    /* luna */
     attrset(P(C_LUNA) | A_BOLD);
     for (r = 0; r < 7; r++)
         pinta(sy + 1 + r, sx + IW - 17, LUNA[r], sx, sx + IW);
 
-    /* nubes */
     for (k = 0; k < 3; k++) {
         const char **nb = (k % 2 == 0) ? NUBE_A : NUBE_B;
         int span = IW + 30;
@@ -396,7 +373,6 @@ static void dibujarEscena(int y0, int x0) {
             pinta(sy + cy + r, sx + cx, nb[r], sx, sx + IW);
     }
 
-    /* gaviotas */
     attrset(P(C_NUBE) | A_BOLD);
     for (k = 0; k < 2; k++) {
         int gx = (int)((tick / 3 + k * 23) % (IW + 6)) - 3;
@@ -404,7 +380,6 @@ static void dibujarEscena(int y0, int x0) {
         pinta(sy + gy, sx + gx, ((tick / 5 + k) % 2) ? "\\v/" : "-v-", sx, sx + IW);
     }
 
-    /* barquito lejano cuando no hay barco principal */
     if (nave_modo == 0) {
         int dx = (int)((tick / 5) % (IW + 20)) - 10;
         attrset(P(C_VELA) | A_DIM);
@@ -412,15 +387,12 @@ static void dibujarEscena(int y0, int x0) {
             pinta(sy + HZ - 4 + r, sx + dx, LEJOS[r], sx, sx + IW);
     }
 
-    /* olas de atras */
     for (i = 0; i < 3; i++)
         filaOlas(sy + HZ + i, sx, IW, i, -9.0, lunaC);
 
-    /* barco */
     if (nave_modo != 0)
         dibujarBarco(sy, sx, IW, HZ);
 
-    /* olas de adelante (tapan un poco el casco) */
     for (i = 3; i < SEA; i++)
         filaOlas(sy + HZ + i, sx, IW, i,
                  (i <= 4 && nave_modo != 0) ? 0.45 : -9.0, lunaC);
@@ -431,13 +403,10 @@ static void dibujarEscena(int y0, int x0) {
     attrset(A_NORMAL);
 }
 
-/* ================== DIBUJO GENERAL ================== */
-
 static void dibujarCabecera(int y0, int x0) {
     const char *ol[3] = { "~~~", "~~ ", " ~~" };
-    /* conjunto = logo (7) + espacio (4) + texto (19) = 30 columnas */
-    const int gx = x0 + UW / 2 - 15;   /* inicio del logo */
-    const int tx = gx + 11;            /* inicio del texto */
+    const int gx = x0 + UW / 2 - 15;
+    const int tx = gx + 11;
 
     caja(y0, x0, HH, UW, NULL);
 
@@ -468,7 +437,6 @@ static void dibujarMenuUI(void) {
     dibujarEscena(oy, ox + LW);
 
     if (lp_modo == 5) {
-        /* creditos: los nombres bajan por la caja */
         const char *cr[11] = { "DESARROLLADO POR", "", "Lucas Pereyra", "",
                                "Cristofer Ramos", "", "",
                                "Quien se concentra solo",
@@ -496,7 +464,6 @@ static void dibujarMenuUI(void) {
         }
         attrset(A_NORMAL);
     } else if (lp_modo == 3 || lp_modo == 4) {
-        /* visor del texto */
         int alto = UH - 2, total, mx;
         caja(oy, ox, UH, LW, lp_modo == 3 ? "Texto" : "Diccionario");
         total = (lp_modo == 3) ? filasTexto(0, 0, 0, 0, 0, LW - 4)
@@ -554,7 +521,6 @@ static void dibujarMenuUI(void) {
             attrset(A_NORMAL);
         }
 
-        /* salida */
         caja(oy + MH, ox, UH - MH, LW, "Salida");
         if (g_msg_tipo == 1)      attrset(P(C_OK) | A_BOLD);
         else if (g_msg_tipo == 2) attrset(P(C_ERR) | A_BOLD);
@@ -589,9 +555,6 @@ static void dibujarMenuUI(void) {
     }
 }
 
-/* ================== PORTADA ================== */
-
-/* letras gigantes de B I T A C O R A (5 filas c/u, mismo ancho por letra) */
 static const char *TIT_G[8][5] = {
     { " ____  ", "| __ ) ", "|  _ \\ ", "| |_) |", "|____/ " },
     { " ___ ", "|_ _|", " | | ", " | | ", "|___|" },
@@ -614,7 +577,6 @@ static void dibujarPortada(int y0, int x0, int H) {
 
     caja(y0, x0, H, UW, NULL);
 
-    /* barco grande, cabeceando */
     bt = top + 1 + bobBarco();
     bx = cx - BW / 2;
     roll = 2.0 * seno(tick * 0.11 + 1.0);
@@ -624,11 +586,9 @@ static void dibujarPortada(int y0, int x0, int H) {
         pinta(bt + i, bx + off, BARCO[i], x0 + 1, x0 + UW - 1);
     }
 
-    /* mar bajo el casco */
     for (i = 0; i < 3; i++)
         filaOlas(top + 12 + i, x0 + 1, IW, i, -9.0, -1);
 
-    /* titulo gigante: un brillo recorre las letras */
     x = cx - 29;
     hl = (int)((tick / 3) % 16);
     for (g = 0; g < 8; g++) {
@@ -645,13 +605,10 @@ static void dibujarPortada(int y0, int x0, int H) {
     attrset(P(C_MAR));
     printw("%s", ol[(tick / 4) % 3]);
 
-    /* aviso titilando */
     attrset(((tick / 8) % 2) ? A_DIM : A_BOLD);
     mvprintw(top + 25, cx - 19, "Presiona cualquier tecla para comenzar");
     attrset(A_NORMAL);
 }
-
-/* ================== DIBUJO GENERAL ================== */
 
 static void dibujarTodo(void) {
     int H, ox, oy, y, fb;
@@ -676,7 +633,6 @@ static void dibujarTodo(void) {
         return;
     }
 
-    /* transicion: una ola de espuma barre la portada y deja ver el menu */
     dibujarPortada(oy, ox, H);
     if (g_buf != NULL && (getmaxy(g_buf) != LINES || getmaxx(g_buf) != COLS)) {
         delwin(g_buf);
@@ -688,12 +644,12 @@ static void dibujarTodo(void) {
         g_fase = 2;
         return;
     }
-    overwrite(stdscr, g_buf);          /* guarda la portada */
+    overwrite(stdscr, g_buf);
     erase();
-    dibujarMenuUI();                   /* el menu queda debajo */
+    dibujarMenuUI();
 
     p = g_trans / (double)TR_N;
-    p = p * p * (3.0 - 2.0 * p);       /* arranca y frena suave */
+    p = p * p * (3.0 - 2.0 * p);
     fb = (int)(p * (COLS + 16)) - 8;
     for (y = 0; y < LINES; y++) {
         int f = fb + redondea(2.5 * seno(y * 0.7 - g_trans * 0.6));
@@ -712,8 +668,6 @@ static void dibujarTodo(void) {
     }
     attrset(A_NORMAL);
 }
-
-/* ================== ANIMACION ================== */
 
 static void pasoAnim(void) {
     const int IW = UW - LW - 2;
@@ -760,7 +714,6 @@ static void pasoAnim(void) {
     }
 }
 
-/* dibuja un cuadro, espera una tecla (o timeout) y avanza la animacion */
 static int esperar(void) {
     int t;
     dibujarTodo();
@@ -771,7 +724,6 @@ static int esperar(void) {
 }
 
 static void zarpar(void) {
-    /* no espera: el barco entra mientras ya se usa el menu/form */
     if (nave_modo == 0 || nave_modo == 3) {
         nave_x = NAVE_INI;
         nave_v = 0;
@@ -780,16 +732,12 @@ static void zarpar(void) {
 }
 
 static void atracar(void) {
-    /* no espera: el barco se va solo mientras el menu ya responde */
     if (nave_modo == 1 || nave_modo == 2) {
         nave_modo = 3;
         nave_v = 0.3;
     }
 }
 
-/* ================== ENTRADA DE DATOS ================== */
-
-/* devuelve 1 si acepto, 0 si cancelo con Esc */
 static int leerCampo(const char *titulo, const char *ayuda, int soloNum,
                      int maxlen, char *salida) {
     int t;
@@ -860,8 +808,6 @@ static void cancelado(void) {
     aviso(0, "Cancelado.");
     atracar();
 }
-
-/* ================== OPERACIONES ================== */
 
 static void opInsertarLinea(void) {
     if (!inicializado) {
@@ -1128,7 +1074,6 @@ static void opAgregarTextoDicc(void) {
     atracar();
 }
 
-/* lee un numero en el pie. Devuelve 1..N_OP, o 0 si cancelo o era invalido */
 static int leerComando(void) {
     int t, n;
     g_cmd = 1;
@@ -1146,7 +1091,7 @@ static int leerComando(void) {
             if (g_cn > 0) {
                 g_cbuf[--g_cn] = '\0';
             } else {
-                g_cmd = 0;          /* backspace con el campo vacio cancela */
+                g_cmd = 0;
                 return 0;
             }
         } else if (g_cn < 2 && t >= '0' && t <= '9') {
@@ -1178,7 +1123,6 @@ static void opCreditos(void) {
     atracar();
 }
 
-/* devuelve 1 si hay que salir */
 static int activar(int op) {
     switch (op) {
     case 0: opInsertarLinea();   break;
@@ -1199,8 +1143,6 @@ static int activar(int op) {
     }
     return 0;
 }
-
-/* ================== PUNTO DE ENTRADA ================== */
 
 static void iniciarColores(void) {
     if (!has_colors())
