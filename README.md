@@ -18,6 +18,4 @@
 
 ## Video:
 
-<video src="videobitacora.mp4" width="100%" controls>
-  Tu navegador no soporta la reproducción de video.
-</video>
+https://github.com/user-attachments/assets/0ccafde8-6c8d-4f83-be9e-37ab6cb0cf7c
