@@ -1,10 +1,9 @@
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
+#include <string>
+
+using std::string;
 
 #define MAX_CANT_PALABRAS_X_LINEA 5
-
-typedef char* string;
 
 enum _retorno{
     OK, ERROR, NO_IMPLEMENTADA
@@ -58,17 +57,17 @@ lineas crearLinea() {
     return l;
 }
 
-palabras crearPalabra() {
+palabras crearPalabra(const string &s) {
     palabras p = new(palabra);
-    p->info = NULL;
+    p->info = s;
     p->sig = NULL;
 
     return p;
 }
 
-diccionario crearNodoDiccionario() {
+diccionario crearNodoDiccionario(const string &p) {
     diccionario d = new(diccionarioABB);
-    d->info = NULL;
+    d->info = p;
     d->izq = NULL;
     d->der = NULL;
 
@@ -79,7 +78,6 @@ void liberarPalabras(palabras p) {
     if(p == NULL)
         return;
     liberarPalabras(p->sig);
-    free(p->info);
     delete(p);
 }
 
@@ -115,20 +113,19 @@ void borrarLineaAux(Posicion p, lineas * l) {
     borrarLineaAux(p-1, &((*l)->sig));
 }
 
-bool tieneEspacios(string palabra) {
-    if(palabra[0] == '\0')
+bool tieneEspacios(const string &palabra, Posicion i = 0) {
+    if(i >= palabra.size())
         return false;
-    if(palabra[0] == ' ' || palabra[0] == '\t' || palabra[0] == '\n' || palabra[0] == '\r' || palabra[0] == '\v' || palabra[0] == '\f')
+    if(palabra[i] == ' ' || palabra[i] == '\t' || palabra[i] == '\n' || palabra[i] == '\r' || palabra[i] == '\v' || palabra[i] == '\f')
         return true;
-    return tieneEspacios(palabra + 1);
+    return tieneEspacios(palabra, i+1);
 }
 
-void insertarPalabraEnLinea(palabras * p, Posicion pos, string palabra) {
+void insertarPalabraEnLinea(palabras * p, Posicion pos, const string &palabra) {
     if(pos == 1) {
-        palabras aux = *p;
-        (*p) = crearPalabra();
-        (*p)->info = palabra;
-        (*p)->sig = aux;
+        palabras nueva = crearPalabra(palabra);
+        nueva->sig = *p;
+        *p = nueva;
 
         return;
     }
@@ -140,7 +137,6 @@ void borrarPalabraEnLinea(palabras * p, Posicion pos) {
     if(pos == 1) {
         palabras aux = *p;
         *p = (*p)->sig;
-        free(aux->info);
         delete(aux);
         return;
     }
@@ -170,12 +166,14 @@ void arreglarTextoDesde(lineas l) {
         texto.ultima = l->sig;
         texto.cantidad++;
     }
-    palabras aux = l->sig->primera;
+
     palabras penultima = obtenerPenultimaPalabra(l->primera);
-    l->sig->primera = penultima->sig; //ultima
-    l->sig->primera->sig = aux;
+    palabras ultima = penultima->sig;
     penultima->sig = NULL;
     l->cantidad--;
+
+    ultima->sig = l->sig->primera;
+    l->sig->primera = ultima;
     l->sig->cantidad++;
 
     arreglarTextoDesde(l->sig);
@@ -184,14 +182,14 @@ void arreglarTextoDesde(lineas l) {
 void imprimirPalabras(palabras p){
     if(p == NULL)
         return;
-    printf("%s ", p->info);
+    printf(" %s", p->info.c_str());
     imprimirPalabras(p->sig);
 }
 
-void imprimirTextoAux(lineas l, int n) {
+void imprimirTextoAux(lineas l, Posicion n = 1) {
     if(l == NULL)
         return;
-    printf("%d: ", n);
+    printf("%u:", n);
     imprimirPalabras(l->primera);
     printf("\n");
     imprimirTextoAux(l->sig, n+1);
@@ -205,47 +203,50 @@ void liberarDiccionario(diccionario d) {
     delete(d);
 }
 
-TipoRetorno ingresarPalabraDiccionarioAux(string palabra, diccionario * d) {
+TipoRetorno ingresarPalabraDiccionarioAux(const string &palabra, diccionario * d) {
     if(*d == NULL) {
-        (*d) = crearNodoDiccionario();
-        (*d)->info = palabra;
+        (*d) = crearNodoDiccionario(palabra);
         return OK;
     }
-    int a = strcmp(palabra, (*d)->info);
-    if(a == 0)
+    if(palabra == (*d)->info)
         return ERROR;
-    return (a > 0) ? ingresarPalabraDiccionarioAux(palabra, &((*d)->der)) : ingresarPalabraDiccionarioAux(palabra, &((*d)->izq));
+
+    if(palabra > (*d)->info)
+        return ingresarPalabraDiccionarioAux(palabra, &((*d)->der));
+    return ingresarPalabraDiccionarioAux(palabra, &((*d)->izq));
 }
 
 void imprimirDiccionarioAux(diccionario d) {
     if(d == NULL)
         return;
     imprimirDiccionarioAux(d->izq);
-    printf("%s\n", d->info);
+    printf("%s\n", d->info.c_str());
     imprimirDiccionarioAux(d->der);
 }
 
-bool estaPalabraPerteneceAlDicc(palabras p, diccionario d) {
+bool estaPalabraPerteneceAlDicc(const string &s, diccionario d) {
     if(d == NULL)
         return false;
-    int a = strcmp(p->info, d->info);
-    if(a == 0)  
+    if(s == d->info)
         return true;
-    return (a > 0) ? estaPalabraPerteneceAlDicc(p, d->der) : estaPalabraPerteneceAlDicc(p, d->izq);
+
+    if(s > d->info)
+        return estaPalabraPerteneceAlDicc(s, d->der);
+    return estaPalabraPerteneceAlDicc(s, d->izq);
 }
 
 void imprimirPalabrasIncorrectasAux(palabras p) {
     if(p == NULL)
         return;
-    if(!estaPalabraPerteneceAlDicc(p, texto.dicc))
-        printf("%s ", p->info);
+    if(!estaPalabraPerteneceAlDicc(p->info, texto.dicc))
+        printf(" %s", p->info.c_str());
     imprimirPalabrasIncorrectasAux(p->sig);
 }
 
-void imprimirTextoIncorrectoAux(lineas l, int n) {
+void imprimirTextoIncorrectoAux(lineas l, Posicion n = 1) {
     if(l == NULL)
         return;
-    printf("%d:", n);
+    printf("%u:", n);
     imprimirPalabrasIncorrectasAux(l->primera);
     printf("\n");
     imprimirTextoIncorrectoAux(l->sig, n+1);
@@ -265,32 +266,25 @@ void agregarIncorrectasAlDiccionarioAux(lineas l) {
     agregarIncorrectasAlDiccionarioAux(l->sig);
 }
 
-/*
-    Funciones "Primarias". Muchas delegan a una función auxiliar la cual hace el "trabajo bruto",
-    es decir, llamadas recursivas. De esta forma le damos a main() una "fachada bonita"
-    de las funciones a usar.
-*/
+//Funciones "Primarias". Muchas delegan a una función auxiliar la cual hace el "trabajo bruto", es decir, llamadas recursivas. De esta forma le damos a main() una "fachada bonita" de las funciones a usar.
 
 void Destruir() {
     liberarLineas(texto.primera);
+    liberarDiccionario(texto.dicc);
     texto.primera = NULL;
     texto.ultima = NULL;
     texto.cantidad = 0;
-    liberarDiccionario(texto.dicc);
     texto.dicc = NULL;
     inicializado=false;
 }
 
 void Inicializar() {
-    Destruir();
-    texto.primera = NULL;
-    texto.ultima = NULL;
-    texto.cantidad = 0;   
+    Destruir(); 
     inicializado=true;
 }
 
 //O(1)
-TipoRetorno InsertarLinea() {
+TipoRetorno InsertarLinea() {//L
     if(!inicializado) return ERROR;
 
     lineas l = crearLinea();
@@ -318,8 +312,8 @@ TipoRetorno BorrarLinea(Posicion p) {
     return OK;
 }
 
-TipoRetorno InsertarPalabra(Posicion pLinea, Posicion pPalabra, string palabra) {
-    if(!inicializado || pLinea < 1 || pLinea > texto.cantidad || pPalabra < 1 || pPalabra > MAX_CANT_PALABRAS_X_LINEA || palabra == NULL || palabra[0] == '\0' || tieneEspacios(palabra))
+TipoRetorno InsertarPalabra(Posicion pLinea, Posicion pPalabra, const string &palabra) {
+    if(!inicializado || pLinea < 1 || pLinea > texto.cantidad || pPalabra == 0 || pPalabra > MAX_CANT_PALABRAS_X_LINEA + 1 || palabra.empty() || tieneEspacios(palabra))
         return ERROR;
     lineas l = buscarLinea(texto.primera, pLinea);
     if(pPalabra > l->cantidad + 1)
@@ -334,7 +328,7 @@ TipoRetorno InsertarPalabra(Posicion pLinea, Posicion pPalabra, string palabra) 
 }
 
 TipoRetorno BorrarPalabra(Posicion pLinea, Posicion pPalabra) {
-    if(!inicializado || pLinea < 1 || pLinea > texto.cantidad || pPalabra < 1 || pPalabra > MAX_CANT_PALABRAS_X_LINEA)
+    if(!inicializado || pLinea == 0 || pLinea > texto.cantidad || pPalabra == 0 || pPalabra > MAX_CANT_PALABRAS_X_LINEA)
         return ERROR;
     lineas l = buscarLinea(texto.primera, pLinea);
     if(pPalabra > l->cantidad)
@@ -346,14 +340,18 @@ TipoRetorno BorrarPalabra(Posicion pLinea, Posicion pPalabra) {
 }
 
 TipoRetorno ImprimirTexto() {
-    if(texto.cantidad == 0)
+    if(!inicializado)
+        return ERROR;
+    if(texto.cantidad == 0) {
         printf("Texto vacio");
-    imprimirTextoAux(texto.primera, 1);
+        return OK;
+    }
+    imprimirTextoAux(texto.primera);
     return OK;
 }
 
-TipoRetorno IngresarPalabraDiccionario(string palabra) {
-    if(!inicializado || palabra == NULL || palabra[0] == '\0' || tieneEspacios(palabra))
+TipoRetorno IngresarPalabraDiccionario(const string &palabra) {
+    if(!inicializado || palabra.empty()|| tieneEspacios(palabra))
         return ERROR;
     return ingresarPalabraDiccionarioAux(palabra, &(texto.dicc));
 }
@@ -374,9 +372,11 @@ TipoRetorno ImprimirTextoIncorrecto() {
         return ERROR;
     if(texto.dicc == NULL)
         return ImprimirTexto();
-    if(texto.cantidad == 0)
+    if(texto.cantidad == 0) {
         printf("Texto vacio");
-    imprimirTextoIncorrectoAux(texto.primera, 1);
+        return OK;
+    }
+    imprimirTextoIncorrectoAux(texto.primera);
     return OK;
 }
 
