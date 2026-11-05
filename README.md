@@ -5,7 +5,7 @@
  \____/   viento en popa ~~~
 ```
 
-🔗 **Repositorio:** [github.com/lucasp3113/bitacora](https://github.com/lucasp3113/bitacora)
+**Repositorio:** [github.com/lucasp3113/bitacora](https://github.com/lucasp3113/bitacora)
 
 ## Desarrollado por
 
